@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="author" content="Alejandrina Badillo">
+<meta name="description" content="Sanitised handoff: placing a live tracking-status icon in a field app's top bar, and why officer-visible signal confidence is the cheapest feedback loop in the system.">
+<title>Signal Confidence in the Officer's Hand</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+img{max-width:100%}
+
+:root{
+  color-scheme:light;
+  --ground:#EEF0F3; --surface:#FBFCFD; --sunk:#E2E6EB;
+  --ink:#171B22; --ink-2:#454C58; --ink-3:#737C89;
+  --rule:#CBD1D9; --rule-2:#DDE2E8;
+  --accent:#2F4A8C; --accent-soft:#E1E6F3;
+  --cost:#B23A2C; --cost-soft:#F5E3E0;
+  --good:#2E7D4F; --uncertain:#B07A0B; --none:#B23A2C; --off:#8A929E;
+  --shadow:0 1px 2px rgba(23,27,34,.05), 0 6px 20px rgba(23,27,34,.05);
+  --disp:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Public Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#101318; --surface:#191D24; --sunk:#14181E;
+    --ink:#E7E9ED; --ink-2:#ACB3BD; --ink-3:#79818D;
+    --rule:#2A2F38; --rule-2:#22262D;
+    --accent:#8FA5DE; --accent-soft:#1A2039;
+    --cost:#DE8878; --cost-soft:#2E1A16;
+    --good:#6CBB8B; --uncertain:#D8AC4C; --none:#DE8878; --off:#767E8A;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#101318; --surface:#191D24; --sunk:#14181E;
+  --ink:#E7E9ED; --ink-2:#ACB3BD; --ink-3:#79818D;
+  --rule:#2A2F38; --rule-2:#22262D;
+  --accent:#8FA5DE; --accent-soft:#1A2039;
+  --cost:#DE8878; --cost-soft:#2E1A16;
+  --good:#6CBB8B; --uncertain:#D8AC4C; --none:#DE8878; --off:#767E8A;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+}
+
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:62rem;margin:0 auto;padding:0 clamp(18px,4vw,40px) 5rem}
+p{margin:0 0 .9em;max-width:70ch}
+strong{font-weight:600;color:var(--ink)}
+code{font-family:var(--mono);font-size:.85em;background:var(--sunk);color:var(--ink-2);padding:.06em .32em;border-radius:3px}
+.label{font-family:var(--mono);font-size:.65rem;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3)}
+
+header.doc{padding:clamp(38px,6vw,64px) 0 0;border-bottom:2px solid var(--ink)}
+header.doc .imprint{display:flex;flex-wrap:wrap;gap:8px 22px;padding-bottom:1.1rem;border-bottom:1px solid var(--rule)}
+header.doc h1{font-family:var(--disp);font-weight:700;font-size:clamp(2rem,5.4vw,3.2rem);line-height:1.03;letter-spacing:-.026em;margin:.7em 0 .35em;text-wrap:balance}
+header.doc .lede{font-size:1.1rem;color:var(--ink-2);max-width:62ch;margin:0 0 1.5rem}
+
+.redacted{display:flex;align-items:center;gap:.6rem;background:var(--accent-soft);border:1px solid var(--accent);padding:.6rem .9rem;margin:0 0 1.4rem;max-width:64ch;border-radius:3px}
+.redacted .label{color:var(--accent)}
+.redacted p{margin:0;font-size:.92rem;color:var(--ink-2);max-width:none}
+
+section{margin-top:clamp(42px,5vw,64px)}
+.kicker{font-family:var(--mono);font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin:0 0 .5em;font-weight:600}
+h2{font-family:var(--disp);font-weight:700;font-size:clamp(1.6rem,3.4vw,2.15rem);line-height:1.08;letter-spacing:-.02em;margin:0 0 .55em;text-wrap:balance}
+h3{font-family:var(--disp);font-weight:600;font-size:1.2rem;letter-spacing:-.01em;margin:1.9em 0 .5em}
+
+ul{max-width:70ch;padding-left:0;margin:0 0 1em;list-style:none;display:flex;flex-direction:column;gap:.55rem}
+ul li{padding-left:22px;position:relative;line-height:1.55}
+ul li::before{content:"";position:absolute;left:3px;top:9px;width:7px;height:7px;background:var(--accent);border-radius:50%}
+ul li.no::before{background:var(--cost)}
+
+.thesis{border-left:3px solid var(--accent);background:var(--surface);padding:1.1rem 1.3rem;margin:1.4rem 0;box-shadow:var(--shadow);max-width:68ch}
+.thesis p{margin:0;font-size:1.12rem;line-height:1.5;color:var(--ink)}
+.thesis cite{display:block;margin-top:.55em;font-family:var(--mono);font-size:.65rem;font-style:normal;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+
+figure{margin:1.8rem 0 0}
+.plate{border:1px solid var(--rule);background:var(--surface);padding:1.2rem 1rem;overflow-x:auto;box-shadow:var(--shadow)}
+.plate svg{display:block;margin:0 auto;max-width:100%;height:auto;min-width:56rem}
+figcaption{font-size:.93rem;color:var(--ink-2);padding-top:.85rem;max-width:78ch;line-height:1.55}
+figcaption b{color:var(--ink);font-weight:600}
+
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(12rem,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin:1.2rem 0}
+.states div{background:var(--surface);padding:.85rem 1rem;display:flex;flex-direction:column;gap:.25rem}
+.states .sw{display:flex;align-items:center;gap:.5rem;font-family:var(--disp);font-weight:600;font-size:1rem}
+.states .sw i{width:11px;height:11px;border-radius:50%;flex:none}
+.states p{margin:0;font-size:.88rem;color:var(--ink-2);max-width:none;line-height:1.45}
+
+.opts{display:flex;flex-direction:column;gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:1.2rem}
+.opt{background:var(--surface);padding:1rem 1.2rem;display:grid;grid-template-columns:2rem minmax(0,1fr);gap:0 1rem}
+.opt .id{font-family:var(--mono);font-size:.9rem;font-weight:600;color:var(--accent)}
+.opt h4{font-family:var(--disp);font-weight:700;font-size:1.05rem;margin:0 0 .3em;line-height:1.25}
+.opt p{margin:0;font-size:.95rem;color:var(--ink-2);max-width:66ch}
+.opt .verdict{font-family:var(--mono);font-size:.62rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:2px;margin-left:.5rem;vertical-align:2px;white-space:nowrap;display:inline-block}
+.opt .v-yes{background:var(--accent);color:var(--surface)}
+.opt .v-no{border:1px solid var(--cost);color:var(--cost)}
+.opt .v-mb{border:1px solid var(--ink-3);color:var(--ink-3)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);background:var(--surface);box-shadow:var(--shadow);margin:1.2rem 0}
+table{border-collapse:collapse;width:100%;min-width:38rem;font-size:.92rem}
+th{font-family:var(--mono);font-size:.6rem;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:.7rem .85rem;border-bottom:1.5px solid var(--ink);background:var(--sunk);white-space:nowrap}
+td{padding:.72rem .85rem;border-bottom:1px solid var(--rule-2);vertical-align:top;color:var(--ink-2);line-height:1.5}
+tr:last-child td{border-bottom:none}
+td.was{font-family:var(--mono);font-size:.76rem;color:var(--cost);width:15rem}
+td.now{font-family:var(--mono);font-size:.76rem;color:var(--accent);width:15rem}
+td strong{color:var(--ink)}
+
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:1rem 1.2rem;margin:1.2rem 0;box-shadow:var(--shadow);max-width:74ch}
+.note.cost{border-left-color:var(--cost)}
+.note h4{margin:0 0 .45em;font-size:1rem}
+.note p{margin:0 0 .55em;font-size:.96rem;color:var(--ink-2)}
+.note p:last-child{margin-bottom:0}
+
+footer.doc{margin-top:clamp(46px,6vw,70px);border-top:2px solid var(--ink);padding-top:1.1rem;font-size:.86rem;color:var(--ink-3);max-width:76ch;line-height:1.6}
+
+@media print{
+  :root{
+    color-scheme:light;
+    --ground:#fff; --surface:#fff; --sunk:#f2f4f6;
+    --ink:#000; --ink-2:#2b303a; --ink-3:#5b6270;
+    --rule:#b9bfc8; --rule-2:#dcdfe4;
+    --accent:#263d78; --accent-soft:#e8ebf5;
+    --cost:#8f2c20; --cost-soft:#f6e6e3;
+    --good:#255f3d; --uncertain:#8a5f08; --none:#8f2c20; --off:#6e7684;
+    --shadow:none;
+  }
+  body{font-size:10pt;line-height:1.45}
+  .wrap{max-width:none;padding:0 0 1cm}
+  header.doc{padding-top:0}
+  .plate,.note,.thesis,.tablewrap,.states,.opt,.redacted{break-inside:avoid;page-break-inside:avoid}
+  .plate{overflow:visible}
+  .plate svg{min-width:0;width:100%}
+  .tablewrap{overflow:visible}
+  table{min-width:0;font-size:8pt}
+  h2,h3{break-after:avoid}
+  a{text-decoration:none;color:inherit}
+  @page{margin:1.5cm}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="doc">
+  <div class="imprint">
+    <span class="label">Handoff · sanitised</span>
+    <span class="label">Design study</span>
+    <span class="label">Mobile field app</span>
+    <span class="label">Jul 2026</span>
+  </div>
+  <h1>Signal Confidence in the Officer's Hand</h1>
+  <p class="lede">Where a live tracking-status icon belongs in a field app's top bar — and why putting the system's own confidence in front of the person carrying the device is the cheapest feedback loop in the whole operation.</p>
+
+  <div class="redacted">
+    <div>
+      <span class="label">No real data</span>
+      <p>Client names, site addresses and numbers, shift identifiers, personnel initials, repository and file paths, internal component names and the assistant's product name have all been replaced with neutral placeholders. The reasoning, the constraints and the recommendation are unchanged. See the substitution table at the end.</p>
+    </div>
+  </div>
+</header>
+
+<section>
+  <p class="kicker">The main idea</p>
+  <h2>The icon is a false-positive reducer, not chrome</h2>
+  <p>A field officer's phone continuously reports its position while on shift. That signal carries a <strong>confidence</strong> — sometimes the fix is good, sometimes the satellite geometry has collapsed and the position is a guess, sometimes the app has stopped reporting altogether.</p>
+  <p>Today the officer cannot see any of that. The confidence is visible only downstream, to the operations centre and to the automation that reads the feed. So when the signal degrades, the officer — the one person who could fix it in five seconds by reopening the app — is the only participant who does not know.</p>
+
+  <div class="thesis">
+    <p>An officer who can <strong>see</strong> that the signal has gone uncertain can restart the app before the operations centre ever receives an event.</p>
+    <cite>The argument the whole placement study exists to serve</cite>
+  </div>
+
+  <p>That reframes the work. This is not a request to add an icon to a toolbar; it is a proposal to close a control loop at its cheapest point. The placement question only matters because the icon has to be <em>glanceable on every screen, in a fixed position, without a label</em> for that loop to close.</p>
+</section>
+
+<section>
+  <p class="kicker">The flow</p>
+  <h2>Two paths for the same degraded signal</h2>
+  <p>This is the connection between the patrol in the field and the automation that watches it. The same event — accuracy collapsing mid-patrol — travels one of two routes depending on whether anyone in the field can see it.</p>
+
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 980 540" role="img" aria-label="A single event, position accuracy degrading during a patrol, forks into two paths. Along the upper path, which is what happens today, the degraded signal propagates: an AI agent opens an incident, the operations centre reviews it, and someone contacts the officer, who then restarts the app. Along the lower path, available once the officer can see an amber status icon, the officer notices and restarts the app directly, with no agent, no incident and no review. Both paths end at the same place: a healthy signal.">
+        <defs>
+          <marker id="ar-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--cost)"></path>
+          </marker>
+          <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)"></path>
+          </marker>
+          <marker id="ar-n" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"></path>
+          </marker>
+        </defs>
+
+        <!-- signal confidence legend -->
+        <g font-family="IBM Plex Mono, monospace" font-size="10.5">
+          <text x="20" y="26" font-size="9.5" font-weight="600" letter-spacing="1.5" fill="var(--ink-3)">SIGNAL CONFIDENCE</text>
+          <circle cx="176" cy="22" r="5.5" fill="var(--good)"></circle>
+          <text x="188" y="26" fill="var(--ink-2)">good</text>
+          <circle cx="248" cy="22" r="5.5" fill="var(--uncertain)"></circle>
+          <text x="260" y="26" fill="var(--ink-2)">uncertain</text>
+          <circle cx="348" cy="22" r="5.5" fill="var(--none)"></circle>
+          <text x="360" y="26" fill="var(--ink-2)">none</text>
+          <circle cx="416" cy="22" r="5.5" fill="var(--off)"></circle>
+          <text x="428" y="26" fill="var(--ink-2)">off shift</text>
+        </g>
+
+        <!-- shared origin -->
+        <rect x="20" y="215" width="160" height="92" rx="3" fill="var(--surface)" stroke="currentColor" stroke-width="1.8"></rect>
+        <circle cx="40" cy="238" r="6" fill="var(--uncertain)"></circle>
+        <text x="54" y="242" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">Accuracy drops</text>
+        <text x="36" y="264" font-family="Public Sans, sans-serif" font-size="11.5" fill="var(--ink-2)">mid-patrol. The position</text>
+        <text x="36" y="279" font-family="Public Sans, sans-serif" font-size="11.5" fill="var(--ink-2)">is now a guess, and the</text>
+        <text x="36" y="294" font-family="Public Sans, sans-serif" font-size="11.5" fill="var(--ink-2)">app is still reporting it.</text>
+
+        <!-- ============ UPPER PATH — today ============ -->
+        <text x="240" y="52" font-family="IBM Plex Mono, monospace" font-size="9.5" font-weight="600" letter-spacing="1.5" fill="var(--cost)">TODAY — NOBODY IN THE FIELD CAN SEE IT</text>
+
+        <!-- agent band -->
+        <rect x="232" y="62" width="378" height="104" rx="3" fill="var(--cost-soft)" stroke="var(--cost)" stroke-width="1.2" stroke-dasharray="6 4"></rect>
+
+        <rect x="240" y="70" width="170" height="80" rx="3" fill="var(--surface)" stroke="var(--cost)" stroke-width="1.8"></rect>
+        <text x="325" y="100" text-anchor="middle" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">An agent opens</text>
+        <text x="325" y="117" text-anchor="middle" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">an incident</text>
+        <text x="325" y="136" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="11" fill="var(--ink-2)">automated, seconds</text>
+
+        <rect x="430" y="70" width="170" height="80" rx="3" fill="var(--surface)" stroke="var(--cost)" stroke-width="1.8"></rect>
+        <text x="515" y="100" text-anchor="middle" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">Operations centre</text>
+        <text x="515" y="117" text-anchor="middle" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">reviews it</text>
+        <text x="515" y="136" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="11" fill="var(--ink-2)">a person, minutes</text>
+
+        <rect x="620" y="70" width="170" height="80" rx="3" fill="var(--surface)" stroke="var(--cost)" stroke-width="1.8"></rect>
+        <text x="705" y="100" text-anchor="middle" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">Someone contacts</text>
+        <text x="705" y="117" text-anchor="middle" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">the officer</text>
+        <text x="705" y="136" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="11" fill="var(--ink-2)">a phone call</text>
+
+        <g stroke="var(--cost)" stroke-width="1.8" marker-end="url(#ar-c)">
+          <line x1="410" y1="110" x2="424" y2="110"></line>
+          <line x1="600" y1="110" x2="614" y2="110"></line>
+        </g>
+        <path d="M 180 232 C 208 226 214 148 234 116" fill="none" stroke="var(--cost)" stroke-width="1.8" marker-end="url(#ar-c)"></path>
+
+        <text x="421" y="184" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="11.5" font-weight="600" fill="var(--cost)">AI agents act here — on a signal that was never an event</text>
+        <text x="705" y="184" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="11.5" font-weight="600" fill="var(--cost)">three handoffs, all of them false positives</text>
+
+        <!-- ============ LOWER PATH — with the icon ============ -->
+        <text x="240" y="366" font-family="IBM Plex Mono, monospace" font-size="9.5" font-weight="600" letter-spacing="1.5" fill="var(--accent)">WITH THE ICON — THE LOOP CLOSES IN THE FIELD</text>
+
+        <rect x="240" y="378" width="240" height="80" rx="3" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.8"></rect>
+        <circle cx="266" cy="404" r="6" fill="var(--uncertain)"></circle>
+        <text x="282" y="409" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">The officer sees amber</text>
+        <text x="258" y="430" font-family="Public Sans, sans-serif" font-size="11" fill="var(--ink-2)">same fixed spot in the top bar,</text>
+        <text x="258" y="445" font-family="Public Sans, sans-serif" font-size="11" fill="var(--ink-2)">on every screen, no label needed</text>
+
+        <rect x="510" y="378" width="240" height="80" rx="3" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.8"></rect>
+        <text x="630" y="409" text-anchor="middle" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">The officer reopens the app</text>
+        <text x="630" y="430" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="11" fill="var(--ink-2)">about five seconds,</text>
+        <text x="630" y="445" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="11" fill="var(--ink-2)">nobody else involved</text>
+
+        <line x1="480" y1="418" x2="504" y2="418" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#ar-a)"></line>
+        <path d="M 180 290 C 208 296 214 380 234 412" fill="none" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#ar-a)"></path>
+
+        <text x="495" y="486" text-anchor="middle" font-family="Public Sans, sans-serif" font-size="11.5" font-weight="600" fill="var(--accent)">no agent · no incident · no review · no phone call</text>
+
+        <!-- ============ shared endpoint ============ -->
+        <rect x="810" y="215" width="150" height="92" rx="3" fill="var(--surface)" stroke="var(--good)" stroke-width="2.2"></rect>
+        <circle cx="832" cy="240" r="6" fill="var(--good)"></circle>
+        <text x="846" y="244" font-family="Archivo, sans-serif" font-size="13" font-weight="700" fill="var(--ink)">Signal good</text>
+        <text x="826" y="266" font-family="Public Sans, sans-serif" font-size="11.5" fill="var(--ink-2)">Identical outcome,</text>
+        <text x="826" y="281" font-family="Public Sans, sans-serif" font-size="11.5" fill="var(--ink-2)">reached two ways at</text>
+        <text x="826" y="296" font-family="Public Sans, sans-serif" font-size="11.5" fill="var(--ink-2)">very different cost.</text>
+
+        <path d="M 790 124 C 838 148 862 180 878 211" fill="none" stroke="var(--cost)" stroke-width="1.8" marker-end="url(#ar-c)"></path>
+        <path d="M 750 404 C 800 388 852 342 876 311" fill="none" stroke="var(--accent)" stroke-width="1.8" marker-end="url(#ar-a)"></path>
+
+        <!-- who acts, as a spine label -->
+        <text x="100" y="330" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" font-weight="600" letter-spacing="1.2" fill="var(--ink-3)">ONE EVENT</text>
+        <text x="100" y="344" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9.5" font-weight="600" letter-spacing="1.2" fill="var(--ink-3)">TWO ROUTES</text>
+      </svg>
+    </div>
+    <figcaption><b>The automation is not wrong on the upper path — it is working correctly on a signal that lied to it.</b> An agent that receives a degraded position with no way to know it is degraded must treat it as real, so it escalates, and every handoff after that is expensive and unnecessary. The lower path does not make the agents smarter; it removes the input that fooled them. That is the general lesson worth carrying: <em>before adding intelligence downstream, check whether someone upstream could have seen the problem and simply been told.</em></figcaption>
+  </figure>
+
+  <div class="note">
+    <h4>Why the vocabulary must match the control room</h4>
+    <p>The icon's four states deliberately reuse the same colour semantics the operations map already applies to incoming position pings. An officer saying "mine is amber" and a controller seeing amber are then describing the same thing — which is what makes a phone call short instead of diagnostic.</p>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">The states</p>
+  <h2>Four states, and the one that earns the feature</h2>
+  <div class="states">
+    <div>
+      <span class="sw"><i style="background:var(--good)"></i>Active</span>
+      <p>Reporting, accuracy within tolerance. Nothing to do.</p>
+    </div>
+    <div>
+      <span class="sw"><i style="background:var(--uncertain)"></i>Low accuracy</span>
+      <p><strong>The state that justifies the whole feature.</strong> Still reporting, but the position cannot be trusted. Actionable by the officer alone.</p>
+    </div>
+    <div>
+      <span class="sw"><i style="background:var(--none)"></i>Not tracking</span>
+      <p>Should be reporting and is not — permission revoked, service killed, or the app was force-closed.</p>
+    </div>
+    <div>
+      <span class="sw"><i style="background:var(--off)"></i>Off / no shift</span>
+      <p>Correctly inactive. Rendered grey rather than removed, so the position is learned.</p>
+    </div>
+  </div>
+  <div class="note">
+    <h4>Absence renders as a state, not as nothing</h4>
+    <p>The icon is greyed when off-shift rather than hidden. Two reasons: a control that appears and disappears is never learned, and — more importantly — "off" and "broken" must look different. A missing icon would collapse those two into one.</p>
+  </div>
+</section>
+
+<section>
+  <p class="kicker">The method</p>
+  <h2>Argue placement from the component contract, not from taste</h2>
+  <p>The study is built as a faithful interactive mock of the real home screen on two device profiles, with every icon the top bar can currently display and under what condition. Placement is then argued from what the shared bar component <em>already guarantees</em>:</p>
+  <ul>
+    <li>The notifications bell is appended <strong>after</strong> the caller-supplied action list, so it is always rightmost on every screen that uses the shared bar. It is the app's fixed anchor.</li>
+    <li>Therefore inserting the new icon into that action list lands it <strong>immediately left of the bell</strong>, on every screen and every device profile, as a one-line change — inheriting the anchor rather than competing with it.</li>
+    <li>The leading area is a single tap target that opens the account screen, and its contents can be hidden by profile configuration. Anything anchored there can be stranded.</li>
+  </ul>
+
+  <div class="opts">
+    <div class="opt">
+      <span class="id">A</span>
+      <div>
+        <h4>Right cluster, between the avatar and the bell<span class="verdict v-yes">recommended</span></h4>
+        <p>Inherits the app-wide anchor, needs no new layout, appears identically on both device profiles, and is glanceable on every screen. One-line insertion into the existing action list.</p>
+      </div>
+    </div>
+    <div class="opt">
+      <span class="id">B</span>
+      <div>
+        <h4>Left, beside the rating indicator<span class="verdict v-no">rejected</span></h4>
+        <p>The leading area reads as "my status", which fits semantically — but the whole area is one tap target to the account screen today, so adding a second action there invites mis-taps. And the rating can be hidden by configuration, which would leave the icon stranded beside nothing.</p>
+      </div>
+    </div>
+    <div class="opt">
+      <span class="id">C</span>
+      <div>
+        <h4>Status chip inside the shift card<span class="verdict v-mb">companion, not replacement</span></h4>
+        <p>Has room for a text label, which the top-bar icon does not. But it scrolls away with content and is absent from every other screen — so it cannot carry the glanceability requirement. Best shipped <em>alongside</em> A, where the label teaches the icon's meaning.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Constraints found in the existing UI</h3>
+  <ul>
+    <li>Roughly three actions is the practical ceiling for a top bar under standard platform guidance — adding a fourth crowds the title, which on one device profile is already long.</li>
+    <li>Minimum 48&nbsp;dp touch target, preserved at the icon's small visual size.</li>
+    <li class="no">Do not remove the icon when inactive. Grey it, so its position is always the same place.</li>
+  </ul>
+</section>
+
+<section>
+  <p class="kicker">Provenance</p>
+  <h2>What was substituted</h2>
+  <p>Every replacement below is a placeholder. Nothing was paraphrased to change meaning, and no argument depends on a redacted value.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Category</th><th>In the original</th><th>In this version</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Client / employer name</strong></td><td class="was">named company</td><td class="now">omitted entirely</td></tr>
+        <tr><td><strong>Site addresses</strong></td><td class="was">two real street addresses</td><td class="now">removed; no site shown</td></tr>
+        <tr><td><strong>Site numbers</strong></td><td class="was">two six-digit site codes</td><td class="now">removed</td></tr>
+        <tr><td><strong>Shift identifiers</strong></td><td class="was">two eight-digit shift ids</td><td class="now">removed</td></tr>
+        <tr><td><strong>Personnel</strong></td><td class="was">officer initials on the avatar</td><td class="now">removed</td></tr>
+        <tr><td><strong>Repository name</strong></td><td class="was">internal repo</td><td class="now">"the field app"</td></tr>
+        <tr><td><strong>File paths and line numbers</strong></td><td class="was">eight source references</td><td class="now">described by role — "the shared bar component", "the home screen"</td></tr>
+        <tr><td><strong>Component and config identifiers</strong></td><td class="was">internal class, flag and enum names</td><td class="now">plain description of the behaviour</td></tr>
+        <tr><td><strong>Assistant product name</strong></td><td class="was">internal assistant name</td><td class="now">not referenced</td></tr>
+        <tr><td><strong>Device profiles</strong></td><td class="was">internal build-flavour names</td><td class="now">"personal device" / "company device"</td></tr>
+        <tr><td><strong>Brand colours</strong></td><td class="was">corporate navy and gold</td><td class="now">neutral palette; only the four state colours are semantic</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note cost">
+    <h4>One thing to check before sharing</h4>
+    <p>This version carries no client, personnel or source data. What it does still reveal is <strong>a design approach and an operational weakness</strong> — that a degraded position signal currently reaches the control room before it reaches the officer. That is fair to discuss as professional work, but it is a judgement call, not a redaction: decide deliberately whether the audience should see it.</p>
+  </div>
+</section>
+
+<footer class="doc">
+  Sanitised handoff of a July 2026 design study. The original is an interactive mock with three selectable placements and four selectable status states, rendered on two device profiles. This version preserves the reasoning, the rejected options and their reasons, the constraints, and the recommendation — with all identifying data replaced by placeholders.
+</footer>
+
+</div>
+</body>
+</html>
