@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="author" content="Alejandrina Badillo">
+<meta name="description" content="Handoff: Bubo x RuView perimeter integration and emulation. Division of responsibility, verified capability audit, the correlation design and its four invariants, and a correction that supersedes sections 4, 5 and 9.">
+<title>Bubo × RuView Perimeter Handoff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0}
+img{max-width:100%}
+
+:root{
+  color-scheme:light;
+  --ground:#EEF1F0; --surface:#FFFFFF; --surface-2:#F7F9F8;
+  --ink:#141D1C; --ink-2:#4E5C5A; --ink-3:#7C8A87;
+  --rule:#D2DAD8; --rule-2:#E4EAE8;
+  --accent:#0E6E7D; --accent-soft:#DDEDEF;
+  --clear:#3F7A55; --clear-soft:#E2EFE7;
+  --approach:#A96C0C; --approach-soft:#F6EBD6;
+  --breach:#AF3527; --breach-soft:#F7E3E0;
+  --unknown:#6A57A0; --unknown-soft:#E9E4F3;
+  --shadow:0 1px 2px rgba(20,29,28,.06), 0 8px 24px rgba(20,29,28,.05);
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --f-sans:"Source Sans 3","Segoe UI",-apple-system,Helvetica,Arial,sans-serif;
+  --f-disp:"Barlow Condensed","Arial Narrow",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0C1312; --surface:#121B1A; --surface-2:#172221;
+    --ink:#E6EDEB; --ink-2:#9CADAA; --ink-3:#6B7C79;
+    --rule:#243230; --rule-2:#1B2726;
+    --accent:#3FB3C4; --accent-soft:#123036;
+    --clear:#6FB183; --clear-soft:#13291D;
+    --approach:#DFA245; --approach-soft:#2E2413;
+    --breach:#E4634C; --breach-soft:#301A16;
+    --unknown:#A08FD6; --unknown-soft:#221D36;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0C1312; --surface:#121B1A; --surface-2:#172221;
+  --ink:#E6EDEB; --ink-2:#9CADAA; --ink-3:#6B7C79;
+  --rule:#243230; --rule-2:#1B2726;
+  --accent:#3FB3C4; --accent-soft:#123036;
+  --clear:#6FB183; --clear-soft:#13291D;
+  --approach:#DFA245; --approach-soft:#2E2413;
+  --breach:#E4634C; --breach-soft:#301A16;
+  --unknown:#A08FD6; --unknown-soft:#221D36;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+}
+
+body{background:var(--ground);color:var(--ink);font-family:var(--f-sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:60rem;margin:0 auto;padding:0 clamp(18px,4vw,40px) 5rem}
+p{margin:0 0 .9em;max-width:72ch}
+strong{font-weight:600;color:var(--ink)}
+em{font-style:italic}
+code{font-family:var(--f-mono);font-size:.85em;background:var(--surface-2);border:1px solid var(--rule-2);color:var(--ink-2);padding:.06em .3em;border-radius:3px;word-break:break-word}
+a{color:var(--accent)}
+
+.mono-label{font-family:var(--f-mono);font-size:.66rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+
+header.doc{padding:clamp(38px,6vw,64px) 0 0}
+header.doc .imprint{display:flex;flex-wrap:wrap;gap:8px 20px;padding-bottom:1.1rem;border-bottom:1px solid var(--rule)}
+header.doc h1{font-family:var(--f-disp);font-weight:700;font-size:clamp(2.1rem,6vw,3.5rem);line-height:1;letter-spacing:-.01em;text-transform:uppercase;margin:.7em 0 .3em;text-wrap:balance}
+header.doc h1 .thin{font-weight:500;color:var(--ink-2)}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:1.4rem}
+.meta div{background:var(--surface);padding:.7rem .9rem}
+.meta .k{font-family:var(--f-mono);font-size:.6rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);display:block}
+.meta .v{font-family:var(--f-mono);font-size:.78rem;color:var(--ink);display:block;margin-top:.15em;line-height:1.45}
+
+.banner{border:2px solid var(--breach);background:var(--breach-soft);padding:1.1rem 1.3rem;margin-top:1.6rem}
+.banner .mono-label{color:var(--breach);display:block;margin-bottom:.5em}
+.banner h2{font-family:var(--f-disp);font-weight:700;font-size:1.5rem;line-height:1.12;text-transform:uppercase;margin:0 0 .4em;color:var(--ink)}
+.banner p{margin:0 0 .6em;font-size:1rem}
+.banner p:last-child{margin-bottom:0}
+
+section{margin-top:clamp(42px,5vw,66px);scroll-margin-top:18px}
+h2{font-family:var(--f-disp);font-weight:700;font-size:clamp(1.6rem,3.4vw,2.1rem);line-height:1.08;text-transform:uppercase;margin:0 0 .5em;text-wrap:balance;display:flex;gap:.6rem;align-items:baseline;flex-wrap:wrap}
+h2 .sn{font-family:var(--f-mono);font-size:.72rem;font-weight:600;letter-spacing:.12em;color:var(--accent);text-transform:none}
+h3{font-family:var(--f-disp);font-weight:600;font-size:1.28rem;line-height:1.16;text-transform:uppercase;margin:1.9em 0 .5em}
+h4{font-size:1rem;font-weight:700;margin:1.5em 0 .4em}
+
+ul,ol{max-width:72ch;padding-left:1.3rem;margin:0 0 1em;display:flex;flex-direction:column;gap:.45rem}
+li{line-height:1.55}
+li::marker{color:var(--accent)}
+ol{counter-reset:none}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);background:var(--surface);box-shadow:var(--shadow);margin:1.1rem 0}
+table{border-collapse:collapse;width:100%;min-width:38rem;font-size:.92rem}
+th{font-family:var(--f-mono);font-size:.6rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:.65rem .8rem;border-bottom:1.5px solid var(--ink);background:var(--surface-2);white-space:nowrap;vertical-align:bottom}
+td{padding:.7rem .8rem;border-bottom:1px solid var(--rule-2);vertical-align:top;color:var(--ink-2);line-height:1.5}
+tr:last-child td{border-bottom:none}
+td.id{font-family:var(--f-mono);font-size:.76rem;color:var(--accent);white-space:nowrap;width:4.5rem}
+td.n{font-family:var(--f-mono);font-size:.8rem;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td strong,th strong{color:var(--ink)}
+
+pre{background:var(--surface-2);border:1px solid var(--rule);border-left:3px solid var(--accent);padding:.9rem 1.05rem;overflow-x:auto;margin:1rem 0;font-family:var(--f-mono);font-size:.78rem;line-height:1.6;color:var(--ink-2);box-shadow:var(--shadow)}
+pre code{background:none;border:0;padding:0;font-size:inherit;color:inherit}
+
+.pill{font-family:var(--f-mono);font-size:.62rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:2px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.p-yes{color:var(--breach)} .p-no{color:var(--clear)} .p-esc{color:var(--unknown)}
+
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:1rem 1.2rem;margin:1.1rem 0;box-shadow:var(--shadow);max-width:74ch}
+.note.warn{border-left-color:var(--approach)}
+.note.crit{border-left-color:var(--breach)}
+.note.good{border-left-color:var(--clear)}
+.note h4{margin:0 0 .45em;font-size:1rem}
+.note p{margin:0 0 .55em;font-size:.97rem;color:var(--ink-2)}
+.note p:last-child{margin-bottom:0}
+
+blockquote{margin:1rem 0;border-left:3px solid var(--rule);padding:.7rem 0 .7rem 1.1rem;color:var(--ink-2);max-width:72ch}
+blockquote p{margin:0;font-size:.98rem}
+blockquote.superseded{border-left-color:var(--approach);background:var(--approach-soft);padding:.8rem 1.1rem}
+blockquote.superseded p{color:var(--ink)}
+
+hr{border:0;border-top:2px solid var(--rule);margin:2.6rem 0 0}
+
+.correction{border-top:3px solid var(--breach);margin-top:clamp(48px,6vw,72px);padding-top:1.1rem}
+.correction > h2{color:var(--breach)}
+.correction > h2 .sn{color:var(--breach)}
+
+footer.doc{margin-top:clamp(46px,6vw,70px);border-top:2px solid var(--rule);padding-top:1.1rem;font-size:.85rem;color:var(--ink-3);max-width:76ch;line-height:1.6}
+
+@media print{
+  :root{
+    color-scheme:light;
+    --ground:#fff; --surface:#fff; --surface-2:#f4f6f6;
+    --ink:#000; --ink-2:#2b3634; --ink-3:#5a6866;
+    --rule:#b9c3c1; --rule-2:#dbe1e0;
+    --accent:#0a5663; --accent-soft:#e9f2f3;
+    --clear:#2f6242; --approach:#8a5709; --breach:#8e2a1e; --unknown:#564692;
+    --breach-soft:#f7eae8; --approach-soft:#f8f0de; --clear-soft:#eaf3ed; --unknown-soft:#eeebf6;
+    --shadow:none;
+  }
+  body{font-size:10pt;line-height:1.45}
+  .wrap{max-width:none;padding:0 0 1cm}
+  header.doc{padding-top:0}
+  .tablewrap,pre,.note,blockquote,.banner,.meta{break-inside:avoid;page-break-inside:avoid}
+  .tablewrap{overflow:visible}
+  table{min-width:0;font-size:8pt}
+  pre{font-size:7.5pt;white-space:pre-wrap}
+  h2,h3{break-after:avoid}
+  .correction{break-before:page;page-break-before:always}
+  a{text-decoration:none;color:inherit}
+  @page{margin:1.5cm}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="doc">
+  <div class="imprint">
+    <span class="mono-label">Handoff</span>
+    <span class="mono-label">Bubo × RuView</span>
+    <span class="mono-label">2026-08-18</span>
+    <span class="mono-label">ADR-325</span>
+  </div>
+  <h1>Perimeter Integration <span class="thin">&amp;</span> Emulation</h1>
+
+  <div class="meta">
+    <div><span class="k">For</span><span class="v">A session with the Bubo knowledge base connected</span></div>
+    <div><span class="k">From</span><span class="v">A session with RuView only</span></div>
+    <div><span class="k">RuView tree</span><span class="v">ruvnet/RuView @ fresh clone, workspace v2/</span></div>
+    <div><span class="k">Status</span><span class="v">§10 supersedes §4, §5 and §9</span></div>
+  </div>
+</header>
+
+<div class="banner">
+  <span class="mono-label">Read this before anything else</span>
+  <h2>Sections 1–9 were written on a false premise</h2>
+  <p>An initial, too-narrow search reported <strong>no Bubo access</strong>. Bubo material was in fact available locally, and <strong>§10 corrects §4 and §5 against Bubo's own documentation.</strong> Sections 1–9 were written before that discovery.</p>
+  <p><strong>Treat every Bubo-side statement in §1–§9 as an assumption unless §10 confirms it.</strong> Two assumptions in §5 were invalidated outright and have been fixed in code; §9's action list is superseded by §10.5.</p>
+</div>
+
+<section>
+  <h3>Companion documents in the RuView tree</h3>
+  <ul>
+    <li><code>docs/adr/ADR-325-site-lift-map-tracking-perimeter-automation.md</code> — the design</li>
+    <li><code>docs/prototypes/ADR-325-P1-geometry-kernel-spec.md</code> — polygon kernel spec</li>
+    <li><code>docs/prototypes/sitelift-watchfloor.html</code> — working single-file emulation</li>
+    <li><code>docs/prototypes/deconfliction.js</code> — <strong>working, tested</strong> correlation module (§5)</li>
+    <li><code>docs/prototypes/RuView-dependency-analysis.md</code> — verified capability audit</li>
+  </ul>
+</section>
+
+<hr>
+
+<section id="s1">
+  <h2><span class="sn">01</span>The division of responsibility</h2>
+  <p>Settled in conversation with the product owner:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Concern</th><th>System</th><th>Subject</th><th>Identity</th></tr></thead>
+      <tbody>
+        <tr><td>Officer duty-area containment</td><td><strong>Bubo</strong> (exists today)</td><td>Officers</td><td>Named, consented, contract-governed, GPS-tracked</td></tr>
+        <tr><td>Breach detection on high-risk spots</td><td><strong>RuView</strong> (to build)</td><td>Unknown contacts</td><td>Pseudonymous, deliberately unbindable</td></tr>
+        <tr><td>Correlating the two</td><td>New layer</td><td>—</td><td>Join at the <em>incident</em> layer only</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>RuView is a <strong>cueing sensor</strong>, not an identification system. It answers "did something cross this boundary, inbound, at what bearing, with what confidence." It cannot answer "who." That is structural: <code>ruview-track</code> pseudonyms have no field that can bind to a civil identity (ADR-307 invariant 1), and adding one would convert a privacy-preserving sensing system into unconsented surveillance.</p>
+  <div class="note">
+    <p><strong>Therefore:</strong> never ask RuView who the person is. Ask Bubo whether anyone was <em>authorised</em> there, and correlate. See §5.</p>
+  </div>
+</section>
+
+<section id="s2">
+  <h2><span class="sn">02</span>What is verified about RuView</h2>
+  <p>Do not re-derive this. Reproduced on 2026-08-18 in a <code>rust:1.89</code> container, Linux x86_64:</p>
+  <ul>
+    <li><code>cargo test --workspace --no-default-features</code> → <strong>4,471 passed, 0 failed, 15 ignored, exit 0</strong> across 240 test binaries. (<code>PROOF.md</code> claims 3,128 — the claim is conservative, not inflated.)</li>
+    <li>The Docker runtime serves real data in simulate mode: presence, motion classification, breathing 9.71 BPM, heart rate 46.22 BPM, per-node CSI amplitude arrays.</li>
+    <li><strong>Pose accuracy is not usable.</strong> The published image ships <strong>no model weights</strong>; all 17 keypoint confidences return exactly <code>0.0</code>. <code>pose_estimation: true</code> means the code path exists, nothing more. Do not build a product claim on pose.</li>
+  </ul>
+
+  <h3>Hard environment requirements</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Requirement</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Rust</td><td><strong>1.89</strong> exactly (<code>v2/rust-toolchain.toml</code>; docs saying 1.70/1.85 are stale)</td></tr>
+        <tr><td>Clone</td><td><code>--recurse-submodules</code> — 9 submodules are path deps of the runtime; without them the workspace cannot resolve</td></tr>
+        <tr><td>Linux system libs</td><td><code>libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev libglib2.0-dev libudev-dev</code> (Tauri + serialport crates are workspace members)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Crates we depend on, and their measured test counts</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Crate</th><th>Tests</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><code>homecore-automation</code></td><td class="n">46</td><td>Trigger/condition/action engine. <code>zone</code> trigger is <strong>unimplemented P2</strong></td></tr>
+        <tr><td><code>ruview-ood</code></td><td class="n">25</td><td><code>KNOWN</code>/<code>DEGRADED</code>/<code>UNKNOWN</code> domain state</td></tr>
+        <tr><td><code>ruview-policy</code></td><td class="n">20</td><td><strong>Fail-closed action gate — thin for a security boundary; harden before trusting</strong></td></tr>
+        <tr><td><code>ruview-placement</code></td><td class="n">14</td><td>Floorplan + inventory → node placement (<code>Rect</code> only)</td></tr>
+        <tr><td><code>ruview-track</code></td><td class="n">8</td><td>Pseudonymous tracks, waypoint history, topology</td></tr>
+        <tr><td><code>ruview-ontology</code></td><td class="n">8</td><td><code>Site▸Building▸Floor▸Space▸Zone</code> spine</td></tr>
+        <tr><td><code>ruview-twin</code></td><td class="n">8</td><td><code>Wall { attenuation_db }</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note good">
+    <h4>The good news for scoping</h4>
+    <p>These crates depend on nothing but <code>thiserror</code>, <code>serde</code>, <code>serde_json</code>, and each other. No submodules, no system libraries, no ONNX. The P1 work builds and tests with <code>cargo test -p ruview-site</code>.</p>
+  </div>
+</section>
+
+<section id="s3">
+  <h2><span class="sn">03</span>The gap RuView still has</h2>
+  <p>There is <strong>no polygon anywhere in RuView's Rust code.</strong> <code>ruview-placement</code> is axis-aligned <code>Rect</code> only. A perimeter, a guarded sector, and a high-risk spot are all polygons. The kernel exists <strong>only as JavaScript</strong> in <code>sitelift-watchfloor.html</code> §1, with a Rust port spec in <code>ADR-325-P1-geometry-kernel-spec.md</code>.</p>
+  <p>Three traps in that spec, each observed rather than theorised — read §6 of it before implementing:</p>
+  <ol>
+    <li><strong>Boundary classification is arbitrary.</strong> Point <code>(70,10)</code> exactly on a fence edge returns <code>contains == true</code>; <code>(150,45)</code> exactly on a vertex returns <code>false</code>. Even-odd ray casting is undefined on the boundary — which is where a perimeter detector lives. Use three-way <code>classify(p, tol)</code>.</li>
+    <li><strong>Two control points always fit perfectly</strong>, so a reported <code>fit_residual_m</code> of <code>0.0</code> is meaningless. Must be <code>Option&lt;f64&gt;</code> / <code>None</code>.</li>
+    <li><strong>Derived sector bands can self-intersect</strong> on concave corners, producing a silently dead sector.</li>
+  </ol>
+</section>
+
+<section id="s4">
+  <h2><span class="sn">04</span>What must be discovered from Bubo</h2>
+  <blockquote class="superseded"><p><strong>B2, B4, B6 and the polygon question are already answered in §10.1 — check there before researching them.</strong> The rest determine whether the design in §5 is viable.</p></blockquote>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Question</th><th>Why it decides the design</th></tr></thead>
+      <tbody>
+        <tr><td class="id">B1</td><td>Does Bubo expose officer position by <strong>push</strong> (webhook/WS/MQTT) or <strong>poll</strong> (REST)?</td><td>Push allows real-time deconfliction; poll forces an interval and a staleness budget</td></tr>
+        <tr><td class="id">B2</td><td>Is there a per-fix <strong>accuracy/HDOP field</strong>?</td><td>Without it, invariant 3 cannot be enforced and coarse fixes will silently excuse breaches. If absent, this is a hard blocker — see §5.4</td></tr>
+        <tr><td class="id">B3</td><td>Any <strong>indoor</strong> position capability (BLE, UWB, badge readers)?</td><td>GPS is unusable indoors, which is exactly where RuView earns its keep. See §5.4</td></tr>
+        <tr><td class="id">B4</td><td>Does Bubo model <strong>authorized zones per officer</strong>, and can its zone ids be mapped to RuView <code>ZoneId</code>s?</td><td>Distinguishes "known person" from "permitted person"</td></tr>
+        <tr><td class="id">B5</td><td>Is there an <strong>on-shift / on-duty</strong> flag?</td><td>An off-duty officer's last-known fix must never attribute</td></tr>
+        <tr><td class="id">B6</td><td>What <strong>clock</strong> do fixes carry, and is it NTP-synced?</td><td>Correlation is only as good as the time alignment</td></tr>
+        <tr><td class="id">B7</td><td>What are the <strong>retention and consent</strong> terms on officer position?</td><td>Correlation records create a new joined dataset; it inherits the stricter regime</td></tr>
+        <tr><td class="id">B8</td><td>Does Bubo already have a <strong>dispatch/task API</strong>?</td><td>Determines whether RuView cues a patrol through Bubo or a new path</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Also confirm: <strong>is Bubo's geofence polygon representation reusable?</strong> The product owner indicated Bubo already has GPS-managed geofencing polygons. If its polygon format is sound, the RuView P1 kernel may be able to consume the same representation rather than inventing a second one — which would be a significant saving. Check its vertex ordering, closure convention, and whether it does containment on the boundary.</p>
+</section>
+
+<section id="s5">
+  <h2><span class="sn">05</span>The correlation design</h2>
+
+  <h3>5.1 · Expected-presence deconfliction</h3>
+  <ul>
+    <li>Bubo: officer at (lat, lon) at time <em>T</em>, accuracy radius <em>r</em></li>
+    <li>RuView: unattributed contact at (lat, lon) at time <em>T</em>, uncertainty radius <em>u</em></li>
+    <li>Footprints overlap in <strong>space and time</strong> → attributable to a known officer</li>
+    <li>No overlap, with good officer data → <strong>that is the breach</strong></li>
+  </ul>
+  <p>RuView still only emits "unknown contact." Attribution happens above it. Nothing is written back into the pseudonym space.</p>
+
+  <h3>5.2 · The four invariants</h3>
+  <p>Implemented and tested in <code>deconfliction.js</code>:</p>
+  <ol>
+    <li><strong>Never suppress, only downgrade.</strong> No code path discards a detection.</li>
+    <li><strong>Fail toward alarm.</strong> Missing, stale, or coarse officer data → <code>INDETERMINATE</code>, which alarms. Absence of an officer record is not evidence the contact was an officer.</li>
+    <li><strong>Coarse fixes cannot attribute.</strong> A 200 m GPS fix geometrically overlaps an entire site and would excuse every breach on it. Reject above <code>maxAccuracyM</code> (default 25 m).</li>
+    <li><strong>Ambiguity escalates.</strong> Two candidate officers, or <code>person_count</code> above the number of overlapping officers, → <code>AMBIGUOUS</code>. This is the "intruder standing next to the officer" case.</li>
+  </ol>
+
+  <h3>5.3 · Attribution is not authorization</h3>
+  <p>Two separate questions, two owners:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Verdict</th><th>Meaning</th><th>Owner</th><th>Alarms</th></tr></thead>
+      <tbody>
+        <tr><td><code>UNATTRIBUTED</code></td><td>Good data, nobody matched. Strongest intruder signal</td><td>RuView incident</td><td><span class="pill p-yes">yes</span></td></tr>
+        <tr><td><code>ATTRIBUTED_AUTHORIZED</code></td><td>One on-duty officer overlaps, permitted here</td><td>—</td><td><span class="pill p-no">no</span></td></tr>
+        <tr><td><code>ATTRIBUTED_UNAUTHORIZED</code></td><td>Officer overlaps but outside their duty area</td><td><strong>Bubo containment</strong></td><td><span class="pill p-yes">yes</span></td></tr>
+        <tr><td><code>AMBIGUOUS</code></td><td>Multiple candidates, or count mismatch</td><td>escalate to human</td><td><span class="pill p-esc">yes</span></td></tr>
+        <tr><td><code>INDETERMINATE</code></td><td>No usable officer data — deconfliction was blind</td><td>RuView incident, flagged blind</td><td><span class="pill p-esc">yes</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><code>ATTRIBUTED_UNAUTHORIZED</code> is the bridge between the two products: it is <em>not</em> a RuView intrusion, it is a Bubo geofence violation surfaced by a RuView sensor.</p>
+
+  <h3>5.4 · Two honest problems</h3>
+  <div class="note warn">
+    <h4>Indoor GPS breaks correlation exactly where RuView matters most</h4>
+    <p>Outdoor GPS is 3–5 m; indoors it is unusable. RuView's differentiator is camera-free <em>indoor</em> sensing, so the officer's position goes dark in precisely the monitored spots. Consequence: with GPS only, deconfliction is an <strong>outdoor-perimeter-only</strong> feature, and indoor detections must be treated as <code>INDETERMINATE</code> — i.e. they always alarm. That may be acceptable, but it must be a decision, not a surprise. Mitigation depends on B3.</p>
+  </div>
+  <div class="note crit">
+    <h4>If Bubo has no accuracy field (B2), do not ship attribution</h4>
+    <p>Without a per-fix accuracy, invariant 3 is unenforceable and a bad fix will suppress a real breach. Better to ship cue-only (§6) than to ship a suppressor that fails silently.</p>
+  </div>
+
+  <h3>5.5 · Reference implementation</h3>
+  <p><code>docs/prototypes/deconfliction.js</code> — dependency-free, deterministic (no clock, no randomness), and self-testing:</p>
+  <pre><code>node docs/prototypes/deconfliction.js --test    # 25 passed, 0 failed</code></pre>
+  <p>Exports <code>deconflict(detection, officerFixes, options)</code>, <code>Verdict</code>, <code>fixUsability</code>, <code>haversineM</code>, <code>responseClassFor</code>. It is intentionally plain JS so it can be dropped into the emulation and ported to Rust unchanged in structure.</p>
+
+  <h4>Input contracts</h4>
+  <pre><code>// RuView detection (from the ADR-325 wire payload)
+{
+  "at_unix_ms": 1755400000000,
+  "lat": 33.41550, "lon": -111.83120,
+  "uncertainty_radius_m": 4.0,       // required; absent ⇒ INDETERMINATE
+  "zone_id": "sector_01_s",
+  "confidence": 0.87,
+  "person_count": 1                  // optional and UNRELIABLE — escalate only
+}
+
+// Bubo officer fix  ← SHAPE ASSUMED, verify against the real KB
+{
+  "officer_id": "off_reyes",
+  "at_unix_ms": 1755400000000,
+  "lat": 33.41559, "lon": -111.83120,
+  "accuracy_m": 5.0,                 // required for invariant 3
+  "source": "gps",                   // gps | ble | badge | uwb
+  "on_duty": true,
+  "authorized_zones": ["sector_01_s"] // absent ⇒ authorization UNKNOWN, not true
+}</code></pre>
+  <div class="note">
+    <h4>Adapter task for the receiving session</h4>
+    <p>Write <code>buboAdapter.toOfficerFix(record)</code> mapping Bubo's real schema onto the shape above. <strong>Do not change the invariants to accommodate a missing field</strong> — if a field is absent, map it to <code>undefined</code> and let the module fail toward alarm.</p>
+  </div>
+</section>
+
+<section id="s6">
+  <h2><span class="sn">06</span>Ship cue-only first</h2>
+  <p>Recommended sequencing, and this is the important recommendation in this document: <strong>build the patrol-cue path before deconfliction.</strong></p>
+  <ul>
+    <li>It requires no attribution at all. Any unattributed contact → dispatch a patrol to clear it. The officer arriving is <em>expected</em>.</li>
+    <li>It matches RuView's evidence grade. Events are <code>L1</code> heuristic with no certified accuracy. Sending a human to look is the correct authority for an <code>L1</code> signal; locking a gate or calling police off an unvalidated sensor is not.</li>
+    <li>The policy gate already encodes the distinction: in the prototype, "Dispatch patrol to sector" is <code>ActionClass::Safety</code> while "Lock Gate B" is <code>Security</code> — the latter requires a <code>KNOWN</code> domain plus a valid certificate and fails closed.</li>
+  </ul>
+  <p>Deconfliction then becomes an optimisation that reduces nuisance dispatches, not a prerequisite for shipping.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Phase</th><th>Deliverable</th><th>Blocked on</th></tr></thead>
+      <tbody>
+        <tr><td class="id">P1</td><td>Polygon kernel + site frame (<code>ruview-site</code>)</td><td>nothing</td></tr>
+        <tr><td class="id">P2</td><td>Map projector + WS channel + read-only map</td><td>P1</td></tr>
+        <tr><td class="id">P3</td><td>Perimeter detector on mapped high-risk spots</td><td>P1</td></tr>
+        <tr><td class="id">P4</td><td>Incidents + policy-gated <strong>patrol dispatch (cue-only)</strong></td><td>P3, B8</td></tr>
+        <tr><td class="id">P4.5</td><td>Bubo expected-presence deconfliction (downgrade only)</td><td>P4, B1–B6</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="s7">
+  <h2><span class="sn">07</span>The emulation to build</h2>
+  <p>Extend <code>sitelift-watchfloor.html</code>, which already emulates P1–P5 deterministically (seeded <code>mulberry32</code>, no clock in the model, no <code>Math.random</code>). Read its §1–§2 before changing anything; keep determinism.</p>
+
+  <h3>7.1 · What already exists in it</h3>
+  <ul>
+    <li>Polygon kernel: <code>contains</code>, <code>signedDistance</code>, <code>segCross</code>, <code>leftNormal</code></li>
+    <li><code>SiteFrame</code>: local ENU ⇄ WGS84, bearings, 8-point compass</li>
+    <li>Six sectors derived from a perimeter ring with inward normals</li>
+    <li>Contacts with intents (<code>breach</code> / <code>approach</code> / <code>pass</code>), uncertainty discs, under-linked <code>UNKNOWN</code> tracks</li>
+    <li>Detector with COGS-compatible payloads, sector arming, sensitivity/threshold</li>
+    <li>Incidents with correlation, fail-closed policy gate, AI triage draft</li>
+    <li>Patrol route with <code>patrol_checkpoint_met</code> / <code>patrol_missed</code></li>
+  </ul>
+
+  <h3>7.2 · What to add</h3>
+  <p><strong>A simulated Bubo officer feed.</strong></p>
+  <pre><code>// One officer per patrol guard, plus optional roamers.
+// Deterministic: derive jitter from the seeded PRNG, never Math.random.
+function buboFixFor(guard, simMs, rand) {
+  const indoor = SITE.spaces.some(sp =&gt; Geom.contains(rectPoly(sp.rect), guard.p));
+  // THE KEY BEHAVIOUR: GPS accuracy collapses indoors.
+  const accuracy_m = indoor ? 45 + rand() * 120 : 3.5 + rand() * 3;
+  const dropout = rand() &lt; (indoor ? 0.35 : 0.02);
+  if (dropout) return null;                     // feed gap ⇒ INDETERMINATE
+  const jitter = accuracy_m * 0.4;
+  const w = SITE.frame.enuToWgs84([
+    guard.p[0] + (rand() - 0.5) * jitter,
+    guard.p[1] + (rand() - 0.5) * jitter
+  ]);
+  return {
+    officer_id: "off_reyes",
+    at_unix_ms: 1755400000000 + simMs,
+    lat: w.lat, lon: w.lon,
+    accuracy_m: +accuracy_m.toFixed(1),
+    source: "gps",
+    on_duty: true,
+    authorized_zones: SITE.patrol.checkpoints.map(c =&gt; c.id)
+  };
+}</code></pre>
+  <p><strong>Run every detection through <code>deconflict()</code></strong> before it opens an incident, and render the verdict on the event and on the map (colour the contact by verdict, draw the officer's accuracy circle so the operator sees <em>why</em> a suppression happened).</p>
+
+  <h4>Five scenarios the emulation must demonstrate</h4>
+  <p>These are the acceptance criteria — each one exists to make a specific failure mode visible:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Scenario</th><th>Must show</th></tr></thead>
+      <tbody>
+        <tr><td class="id">1</td><td>Officer walks a sector outdoors</td><td><code>ATTRIBUTED_AUTHORIZED</code>, no alarm, accuracy circle overlapping the contact</td></tr>
+        <tr><td class="id">2</td><td>Intruder crosses with the officer elsewhere on site</td><td><code>UNATTRIBUTED</code>, full alarm, dispatch offered</td></tr>
+        <tr><td class="id">3</td><td><strong>Officer enters the Control Building</strong></td><td>GPS accuracy blows out to 45–165 m → <code>INDETERMINATE</code>, alarms anyway, labelled <em>deconfliction blind</em>. This is §5.4 made visible</td></tr>
+        <tr><td class="id">4</td><td><strong>Intruder beside the officer</strong> (<code>person_count: 2</code>)</td><td><code>AMBIGUOUS</code>, escalates — proves the system does not suppress a real breach because one person was accounted for</td></tr>
+        <tr><td class="id">5</td><td>Officer in a sector they are not authorized for</td><td><code>ATTRIBUTED_UNAUTHORIZED</code>, routed to Bubo containment, <em>not</em> a RuView intrusion</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note crit">
+    <h4>Add a fail-open toggle, defaulted off</h4>
+    <p>A switch that makes missing officer data suppress instead of alarm — so a reviewer can watch scenario 3 silently swallow a breach, then switch it back. <strong>Making the wrong behaviour demonstrable is the fastest way to get the invariant respected.</strong> Label it clearly as a demonstration of a defect, not a configuration option.</p>
+  </div>
+
+  <h3>7.3 · UI additions</h3>
+  <ul>
+    <li>Verdict pill on each event, coloured: <code>UNATTRIBUTED</code> breach-red, <code>AMBIGUOUS</code> violet, <code>INDETERMINATE</code> violet outline, <code>ATTRIBUTED_AUTHORIZED</code> clear-sage, <code>ATTRIBUTED_UNAUTHORIZED</code> ochre</li>
+    <li>Officer accuracy circle on the map, dashed, with the metre value</li>
+    <li>A "deconfliction blind" counter in the titleblock — how many detections could not be resolved. If that number is high, the integration is not working, and the operator should see it without asking</li>
+  </ul>
+</section>
+
+<section id="s8">
+  <h2><span class="sn">08</span>What must not happen</h2>
+  <p>Non-negotiables carried from ADR-325 and the RuView repository rules:</p>
+  <ol>
+    <li><strong>No officer identity in the sensing pseudonym space.</strong> Correlation output lives in the incident record. <code>ruview_ontology::Track</code>/<code>Person</code> never gain an officer field.</li>
+    <li><strong>No suppression.</strong> Downgrade only. There must be no code path that drops a detection because an officer might have caused it.</li>
+    <li><strong>No fabricated confidence.</strong> Where observability is degraded, emit <code>UNKNOWN</code> — never a plausible-looking low number.</li>
+    <li><strong>No <code>MEASURED</code> labels without a reproducer</strong> on real silicon. Everything in the emulation is <code>SYNTHETIC</code> / <code>L0</code>; deconfliction verdicts over simulated feeds are <code>SYNTHETIC</code> too.</li>
+    <li><strong>No pose-accuracy claims.</strong> The shipped image has no weights and returns keypoint confidence <code>0.0</code>.</li>
+    <li><strong>Officer position is consent-governed data.</strong> The joined correlation record inherits the stricter of the two retention regimes (B7). Do not persist officer tracks into RuView's evidence ledger without answering that.</li>
+  </ol>
+</section>
+
+<section id="s9">
+  <h2><span class="sn">09</span>First three actions for the receiving session</h2>
+  <blockquote class="superseded"><p><strong>Superseded by §10.5.</strong> Use the revised list there: actions 1 and 2 below are partly answered already, and the ordering changed.</p></blockquote>
+  <ol>
+    <li><strong>Answer B1–B8 from the Bubo knowledge base</strong>, and write the findings into a <code>§4 answered</code> section of this document. If B2 (accuracy field) is absent, stop and escalate — ship cue-only per §6 instead.</li>
+    <li><strong>Check whether Bubo's geofence polygon representation is reusable</strong> by the RuView P1 kernel. If it is, the polygon gets built once for both products; note its vertex ordering, closure convention, and boundary behaviour.</li>
+    <li><strong>Write <code>buboAdapter.toOfficerFix()</code></strong> against the real schema and run <code>deconfliction.js --test</code> unchanged. If a real field is missing, map it to <code>undefined</code> — never weaken an invariant to make the tests pass.</li>
+  </ol>
+  <p>Then build the §7 emulation, with scenarios 3 and 4 as the acceptance gate. Those two are the ones that would ship a silent failure if skipped.</p>
+</section>
+
+<div class="correction" id="s10">
+  <h2><span class="sn">10 · CORRECTION</span>Bubo material was available locally, and it changes §4 and §5</h2>
+  <p><strong>Superseding the header of this document.</strong> A first, too-narrow search reported no Bubo access. A full filesystem search found:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Location</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td><code>bubo-field-officer-app.tracking-refactor/</code></td><td>The <strong>Flutter Tracker app</strong> source (<code>lib/</code>, <code>packages/bubo_flutter_foundations</code>, <code>bubo_flutter_ui</code>, <code>integration_test/</code>) on a <em>tracking-refactor</em> branch</td></tr>
+        <tr><td><code>BuboFalseGeofenceCausesByLayer.docx</code></td><td>Layered enumeration of every cause of a false "outside geofence", with file:line citations and CONFIRMED/PLAUSIBLE/GUARD tags</td></tr>
+        <tr><td><code>BuboDefectStaleClockInCoordinates.docx</code></td><td>Defect <strong>BUBO-GEO-STALECOORD-001</strong>, severity High, root cause confirmed</td></tr>
+        <tr><td><code>BuboMethodologyandVerificationPrinciples.docx</code></td><td>Verification methodology</td></tr>
+        <tr><td><code>BuboThreatModelImpactReport{,v2}</code></td><td>Threat model</td></tr>
+        <tr><td><code>BuboSecurityScanFindings*.docx</code>, <code>BuboSecurityReviewTracker.csv</code></td><td>Security review</td></tr>
+        <tr><td><code>interconsecurity-bubo-maps-tracking.zip</code></td><td><strong>Maps/tracking component — not yet opened. Read this first.</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Bubo's own documentation answers several §4 questions and <strong>invalidates two assumptions in §5</strong>. Both have been fixed in <code>deconfliction.js</code> (now 25 tests).</p>
+
+  <h3>10.1 · §4 questions answered from Bubo's docs</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Answer</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td class="id">B2</td><td><strong>Accuracy field exists</strong>, used server-side as <code>polygon.intersects(point.buffer(accuracy/111320))</code>. But a null accuracy <strong>defaults to <code>0.0</code></strong></td><td><code>C2.2 [CONFIRMED]</code></td></tr>
+        <tr><td class="id">B4</td><td>Authorized zones exist via <code>locationId</code>, but the client compares against <code>employee.locationId</code> — the officer's <em>home</em> post, not the current shift's contract location</td><td><code>C3.3 [CONFIRMED]</code><br><code>location_service.dart:582</code></td></tr>
+        <tr><td class="id">B6</td><td>Timestamps exist but are <strong>falsified for stale coordinates</strong> — see 10.3</td><td><code>BUBO-GEO-STALECOORD-001</code></td></tr>
+        <tr><td class="id">poly</td><td>Server-side Shapely polygon built from stored <code>lng</code>/<code>lat</code> keys; only <code>geofence_type == "polygon"</code> is validated server-side</td><td><code>C1.1</code><br><code>calculate_geofence_status.py:67-77</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Still open: <strong>B1</strong> (push vs poll), <strong>B3</strong> (indoor capability), <strong>B5</strong> (on-duty flag as a distinct field), <strong>B7</strong> (retention), <strong>B8</strong> (dispatch API). B3 remains the one that decides whether deconfliction works indoors.</p>
+
+  <h3>10.2 · The accuracy field has opposite risk polarity in the two systems</h3>
+  <p>This is the most important structural finding.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th></th><th>Bubo containment</th><th>RuView deconfliction</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Decision</strong></td><td>Is the officer INSIDE?</td><td>Does this contact overlap a known officer?</td></tr>
+        <tr><td><strong>Large accuracy</strong></td><td><strong>Safer</strong> — bigger tolerance buffer, fewer false "outside"</td><td><strong>Dangerous</strong> — overlaps everything, suppresses real breaches</td></tr>
+        <tr><td><strong>Small/zero accuracy</strong></td><td><strong>Dangerous</strong> — buffer collapses to a point, boundary fix reads OUTSIDE (<code>C2.2</code>)</td><td>Safer — no spurious overlap</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note crit">
+    <p>The same field, read the same way, fails in opposite directions. <strong>Bubo's accuracy handling cannot be reused for RuView deconfliction</strong> — the safe direction inverts. Invariant 3 (<code>maxAccuracyM</code>) is correct for RuView and would be actively wrong as a Bubo containment rule.</p>
+    <p>Fixed in code: <code>accuracy_m &lt;= 0</code> is now rejected as <code>accuracy_zero_or_negative</code>, because per <code>C2.2</code> a zero means <em>accuracy unknown</em> in this pipeline, not <em>perfectly precise</em>.</p>
+  </div>
+
+  <h3>10.3 · The staleness guard was defeated — invariant 2 needed a second mechanism</h3>
+  <p><code>BUBO-GEO-STALECOORD-001</code> (severity High, root cause confirmed in source):</p>
+  <ul>
+    <li><code>logGeoClockInTrack</code> uses <code>_lastLocation ?? getCurrentLocation()</code> — a fresh fix runs <strong>only if the cache is null</strong> (<code>location_service.dart:641,652</code>)</li>
+    <li><code>_lastLocation</code> is assigned in three places and <strong>never cleared</strong>, on a singleton service (<code>:246,366,472</code>)</li>
+    <li>While clocked out, <code>isTrackingEnabled</code> is false so <code>onLocation</code> early-returns — the cache is <strong>guaranteed stale</strong> at the next clock-in (<code>:139-149,221-225</code>)</li>
+    <li><strong><code>location_service.dart:394</code> stamps the ping with <code>DateTime.now()</code> even though the coordinate is old</strong> — "the record LOOKS current, so staleness is invisible downstream"</li>
+  </ul>
+  <p>That last line is fatal to a timestamp-based freshness check. §5.2 invariant 2 relied on <code>at_unix_ms</code> skew; a frozen coordinate from a previous shift arrives with a perfectly fresh timestamp and <strong>passes <code>maxTimeSkewMs</code> cleanly</strong>.</p>
+  <div class="note good">
+    <h4>Fix implemented: frozen-coordinate detection by movement</h4>
+    <p>With <code>cfg.priorFixes[officer_id]</code>, a fix that has moved ≤ <code>frozenEpsilonM</code> (0.5 m) over ≥ <code>frozenMinElapsedMs</code> (60 s) is rejected as <code>frozen_coordinate</code>. Tests cover the frozen case, the genuinely-moved case, and — deliberately — the <strong>blind</strong> case: without <code>priorFixes</code> the defect is undetectable, and there is a test asserting exactly that <em>so the blind spot is visible rather than assumed away</em>.</p>
+  </div>
+  <div class="note warn">
+    <h4>Consequence for sequencing</h4>
+    <p>Until BUBO-GEO-STALECOORD-001 is fixed, attribution rests on a feed with a confirmed high-severity staleness defect whose own timestamps cannot be trusted. That strengthens §6 considerably — <strong>ship cue-only.</strong> A suppressor built on this feed can silently excuse a real breach using a coordinate from a previous shift at a different post.</p>
+  </div>
+
+  <h3>10.4 · Bubo has RuView P1's polygon trap, confirmed in production</h3>
+  <p><code>C1.3 [CONFIRMED]</code>:</p>
+  <blockquote><p>A self-intersecting polygon, fewer than 3 vertices, or wrong winding produces wrong <code>intersects()</code> results. <code>determine_geofence_status</code> checks <code>polygon.is_valid</code> but only logs a warning and proceeds — no <code>.buffer(0)</code> repair, no bail-out (<code>calculate_geofence_status.py:67-77</code>).</p></blockquote>
+  <p>This is trap 3 in <code>ADR-325-P1-geometry-kernel-spec.md</code> §6, occurring in a live system. It also names <strong>wrong winding</strong>, which is precisely why the P1 spec canonicalises every ring to CCW on construction (invariant I1/I3) instead of trusting input order.</p>
+  <div class="note">
+    <p>So the P1 kernel should <strong>not</strong> adopt Bubo's polygon handling. It should reject invalid rings with a typed error, and it is a candidate to <em>replace</em> Bubo's validation rather than mirror it — a shared, strict kernel would close <code>C1.3</code> on the Bubo side too. That reframes the "reuse Bubo's polygon?" question in §9 action 2: <strong>the answer is likely the other direction.</strong></p>
+  </div>
+
+  <h3>10.5 · Revised first actions</h3>
+  <ol>
+    <li><strong>Open <code>interconsecurity-bubo-maps-tracking.zip</code></strong> — the maps/tracking component, the closest existing analogue to what ADR-325 proposes.</li>
+    <li>Read <code>BuboMethodologyandVerificationPrinciples.docx</code> and adopt its CONFIRMED / PLAUSIBLE / GUARD tagging — it is compatible with RuView's MEASURED / CLAIMED / SYNTHETIC discipline and the two should not diverge.</li>
+    <li>Check whether <code>bubo-field-officer-app.tracking-refactor</code> already fixes BUBO-GEO-STALECOORD-001. The branch name suggests the tracking layer is being reworked; if the cache reset landed, 10.3's severity drops.</li>
+    <li>Answer the still-open B1, B3, B5, B7, B8 — <strong>B3 (indoor positioning) remains the gate</strong> on whether deconfliction is viable where RuView matters most.</li>
+    <li>Only then build the §7 emulation, adding a sixth scenario: <strong>frozen coordinate with a fresh timestamp</strong> → must yield <code>INDETERMINATE</code> and alarm.</li>
+  </ol>
+</div>
+
+<footer class="doc">
+  Handoff document, 18 August 2026. RuView findings reproduced in a <code>rust:1.89</code> container on Linux x86_64; Bubo findings cited to file and line from the Bubo source and defect documentation. Everything in the emulation is <code>SYNTHETIC</code> / <code>L0</code> — no <code>MEASURED</code> label is claimed without a reproducer on real silicon.
+</footer>
+
+</div>
+</body>
+</html>
